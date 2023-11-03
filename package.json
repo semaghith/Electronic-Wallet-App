@@ -1,0 +1,35 @@
+{
+  "name": "electronic-wallet-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "node build/app",
+    "dev": "nodemon app.ts",
+    "start-dev": "npm run build && npm run dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/semaghith/Electronic-Wallet-App.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/semaghith/Electronic-Wallet-App/issues"
+  },
+  "homepage": "https://github.com/semaghith/Electronic-Wallet-App#readme",
+  "devDependencies": {
+    "@types/express": "^4.17.20",
+    "@types/node": "^20.8.10",
+    "nodemon": "^3.0.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0"
+  }
+}
