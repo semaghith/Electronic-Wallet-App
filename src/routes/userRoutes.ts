@@ -1,8 +1,7 @@
-import {getUsers} from "../controllers/userContoller"
+import { getUsers } from "../controllers/userContoller";
 
-const Router = require("express").Router;
-const userRoutes = Router();
+const userRoutes = require("express").Router();
 
 userRoutes.get("/", getUsers);
 
-export default userRoutes;
+export { userRoutes };
