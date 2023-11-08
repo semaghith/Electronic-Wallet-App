@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import { User } from "../models/User";
+import { Transaction } from "../models/Transaction";
 
 const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -153,6 +154,15 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
     await sender.updateOne({ balance: senderBalance });
     await receiver.updateOne({ balance: receiverBalance });
 
+    const transaction = new Transaction({
+      receiver: receiverEmail,
+      amount: transferAmount,
+    });
+
+    await sender.updateOne({
+      $push: { transactions: transaction },
+    });
+
     res.status(200).json({
       success: true,
       transferAmount: transferAmount,
@@ -165,6 +175,32 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const listTransactions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email: email });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "Incorrect email" });
+      return;
+    }
+
+    const transaction = user.transactions;
+
+    if (!transaction.length) {
+      res.status(200).json({ success: true, message: "No transactions found" });
+      return;
+    }
+
+    res.status(200).json({ success: true, transactions: transaction });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to list transactions" });
+  }
+};
+
 export {
   getUsers,
   deleteAccount,
@@ -172,4 +208,5 @@ export {
   withdrawMoney,
   depositMoney,
   transferMoney,
+  listTransactions,
 };
