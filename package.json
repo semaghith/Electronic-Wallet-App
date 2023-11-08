@@ -6,8 +6,7 @@
   "scripts": {
     "build": "npx tsc",
     "start": "node build/app",
-    "dev": "nodemon app.ts",
-    "start-dev": "npm run build && npm run dev"
+    "dev": "nodemon src/app.ts"
   },
   "repository": {
     "type": "git",

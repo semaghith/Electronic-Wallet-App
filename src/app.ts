@@ -1,9 +1,10 @@
 import express from "express";
 import mongoose from "mongoose";
+
 import { port, dbURI } from "./config";
-import { userRoutes } from "./src/routes/userRoutes";
-import { authRoutes } from "./src/routes/authRoutes";
-import { verifyAuth } from "./src/middleware/authMiddleware"
+import { userRoutes } from "./routes/userRoutes";
+import { authRoutes } from "./routes/authRoutes";
+import { verifyAuth } from "./middleware/authMiddleware"
 
 const app = express();
 
