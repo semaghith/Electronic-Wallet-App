@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npx tsc",
     "start": "node build/app",
-    "dev": "nodemon src/app.ts"
+    "dev": "nodemon --files src/app.ts"
   },
   "repository": {
     "type": "git",

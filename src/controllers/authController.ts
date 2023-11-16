@@ -23,7 +23,7 @@ const register = async (req: Request, res: Response): Promise<void> => {
 
     await user.save();
 
-    res.status(200).json({ success: true, userEmail: email });
+    res.status(200).json({ success: true, userID: user._id });
   } catch (err) {
     res
       .status(500)
@@ -55,7 +55,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign({ email: email }, tokenKey);
+    const token = jwt.sign({ userID: emailExist._id }, tokenKey);
 
     res.status(200).json({ success: true, userToken: token });
   } catch (err) {

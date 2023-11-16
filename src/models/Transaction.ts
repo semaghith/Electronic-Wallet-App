@@ -1,20 +1,35 @@
 import mongoose from "mongoose";
 
-const TransactionSchema = new mongoose.Schema({
-  date: {
-    type: Date,
-    default: Date.now,
+const baseOptions = {
+  discriminatorKey: "category",
+};
+
+const TransactionSchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  receiver: {
-    type: String,
-    required: true,
-  },
-  amount: {
-    type: Number,
-    required: true,
-  },
-});
+  baseOptions
+);
 
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-export { Transaction };
+const Transfer = Transaction.discriminator(
+  "Transfer",
+  new mongoose.Schema({
+    senderID: { type: String, required: true },
+    receiverID: { type: String, required: true },
+  })
+);
+
+const Deposit = Transaction.discriminator("Deposit", new mongoose.Schema({}));
+
+const Withdraw = Transaction.discriminator("Withdraw", new mongoose.Schema({}));
+
+export { Transfer, Deposit, Withdraw };

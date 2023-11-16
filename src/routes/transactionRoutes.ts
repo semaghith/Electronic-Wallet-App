@@ -9,7 +9,7 @@ import {
 
 const transactionRoutes = router.Router();
 
-transactionRoutes.post("/", listTransactions);
+transactionRoutes.get("/", listTransactions);
 transactionRoutes.post("/deposit", depositMoney);
 transactionRoutes.post("/withdraw", withdrawMoney);
 transactionRoutes.post("/transfer", transferMoney);

@@ -16,11 +16,17 @@ const getUsers = async (req: Request, res: Response): Promise<void> => {
 
 const deleteAccount = async (req: Request, res: Response): Promise<void> => {
   try {
-    const email = req.params.email;
+    const id = req.params.id;
+    const user = req.user;
 
-    await User.findOneAndDelete({ email: email });
+    if (id != user._id) {
+      res.status(403).json({ success: false, message: "" });
+      return;
+    }
 
-    res.status(200).json({ success: true, userEmail: email });
+    await User.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, userID: id });
   } catch (err) {
     res
       .status(500)
@@ -30,12 +36,11 @@ const deleteAccount = async (req: Request, res: Response): Promise<void> => {
 
 const getBalance = async (req: Request, res: Response): Promise<void> => {
   try {
-    const email: String = req.body.email;
+    const id = req.params.id;
+    const user = req.user;
 
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      res.status(404).json({ success: false, message: "Incorrect email" });
+    if (id != user._id) {
+      res.status(403).json({ success: false, message: "" });
       return;
     }
 
@@ -47,8 +52,24 @@ const getBalance = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export {
-  getUsers,
-  deleteAccount,
-  getBalance,
+const updateBalance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id;
+    const { amount } = req.body;
+    const user = req.user;
+
+    if (id != user._id) {
+      res.status(403).json({ success: false, message: "" });
+      return;
+    }
+
+    const balance: Number = user.balance + +amount;
+    user.updateOne({balance: balance});
+
+    res.status(200).json({ success: true, userBalance: balance });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Can't update balance" });
+  }
 };
+
+export { getUsers, deleteAccount, getBalance , updateBalance};

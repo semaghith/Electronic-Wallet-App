@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
 import { tokenKey } from "../config";
+import { User } from "../models/User";
 
 const verifyAuth = async (
   req: Request,
@@ -18,7 +19,14 @@ const verifyAuth = async (
 
     const [, bearerToken] = bearerHeader.split(" ");
 
-    jwt.verify(bearerToken, tokenKey);
+    const userID = (jwt.verify(bearerToken, tokenKey) as { userID: string }).userID;
+
+    req.user = await User.findById(userID);
+
+    if (!req.user) {
+      res.status(404).json({ success: false, message: "Account not found" });
+      return;
+    }
 
     next();
   } catch (err) {

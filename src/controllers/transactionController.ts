@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
 
 import { User } from "../models/User";
-import { Transaction } from "../models/Transaction";
+import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 
 const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, withdrawAmount } = req.body;
+    const { withdrawAmount } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = req.user;
 
     if (+withdrawAmount < 0) {
       res
@@ -16,20 +16,23 @@ const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (!user) {
-      res.status(404).json({ success: false, message: "Incorrect email" });
-      return;
-    }
-
-    let balance: number = await user.balance;
+    let balance: number = user.balance;
 
     if (balance < withdrawAmount) {
-      res.status(406).json({ success: false, message: "Not enough money" });
+      res.status(400).json({ success: false, message: "Not enough money" });
       return;
     }
 
     balance -= withdrawAmount;
-    await user.updateOne({ balance: balance });
+
+    const transaction = new Withdraw({
+      amount: withdrawAmount,
+    });
+
+    await user.updateOne({
+      balance: balance,
+      $push: { transactions: transaction },
+    });
 
     res.status(200).json({ success: true, withdrawAmount: withdrawAmount });
   } catch (err) {
@@ -41,7 +44,8 @@ const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
 
 const depositMoney = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, depositAmount } = req.body;
+    const { depositAmount } = req.body;
+    const user = req.user;
 
     if (+depositAmount < 0) {
       res
@@ -50,16 +54,16 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email: email });
+    const balance: number = user.balance + +depositAmount;
 
-    if (!user) {
-      res.status(404).json({ success: false, message: "Incorrect email" });
-      return;
-    }
+    const transaction = new Deposit({
+      amount: depositAmount,
+    });
 
-    let balance: number = user.balance + +depositAmount;
-
-    await user.updateOne({ balance: balance });
+    await user.updateOne({
+      balance: balance,
+      $push: { transactions: transaction },
+    });
 
     res.status(200).json({ success: true, depositAmount: depositAmount });
   } catch (err) {
@@ -71,22 +75,18 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
 
 const transferMoney = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { senderEmail, receiverEmail, transferAmount } = req.body;
+    const { receiverID, transferAmount } = req.body;
 
-    const sender = await User.findOne({ email: senderEmail });
-    const receiver = await User.findOne({ email: receiverEmail });
-    //sender = receiver?
+    const sender = req.user;
+    const receiver = await User.findById(receiverID);
 
     //TODO: change messages
-    if (!sender) {
-      res.status(404).json({ success: false, message: "Incorrect email" });
-      return;
-    }
+    //sender = receiver?
 
     if (!receiver) {
       res
         .status(404)
-        .json({ success: false, message: "Receiver email not found" });
+        .json({ success: false, message: "Receiver ID not found" });
       return;
     }
 
@@ -97,31 +97,37 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
       res
         .status(400)
         .json({ success: false, message: "Incorrect transfer amount" });
+
       return;
     } else if (+transferAmount > senderBalance) {
-      res.status(406).json({ success: false, message: "Not enough money" });
+      res.status(400).json({ success: false, message: "Not enough money" });
+
       return;
     }
 
     senderBalance -= +transferAmount;
     receiverBalance += +transferAmount;
 
-    await sender.updateOne({ balance: senderBalance });
-    await receiver.updateOne({ balance: receiverBalance });
-
-    const transaction = new Transaction({
-      receiver: receiverEmail,
+    const transaction = new Transfer({
+      senderID: sender._id,
+      receiverID: receiverID,
       amount: transferAmount,
     });
 
     await sender.updateOne({
+      balance: senderBalance,
+      $push: { transactions: transaction },
+    });
+
+    await receiver.updateOne({
+      balance: receiverBalance,
       $push: { transactions: transaction },
     });
 
     res.status(200).json({
       success: true,
+      receiverID: receiverID,
       transferAmount: transferAmount,
-      receiverEmail: receiverEmail,
     });
   } catch (err) {
     res
@@ -132,14 +138,7 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
 
 const listTransactions = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email: email });
-
-    if (!user) {
-      res.status(404).json({ success: false, message: "Incorrect email" });
-      return;
-    }
+    const user = req.user;
 
     const transaction = user.transactions;
 
