@@ -155,4 +155,126 @@ const listTransactions = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export { withdrawMoney, depositMoney, transferMoney, listTransactions };
+const analyzeTransactions = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const user = req.user;
+    const { month, year } = req.query;
+
+    const parsedMonth: number = parseInt(month as string);
+    const parsedYear: number = parseInt(year as string);
+
+    let nextMonth = parsedMonth + 1;
+    let nextYear = parsedYear;
+
+    if (parsedMonth == 12) {
+      nextMonth = 1;
+      nextYear++;
+    }
+
+    const pipeline = [
+      {
+        $match: {
+          $and: [
+            {
+              _id: user._id,
+            },
+            {
+              "transactions.date": {
+                $gte: new Date(`${parsedYear}-${parsedMonth}`),
+                $lt: new Date(`${nextYear}-${nextMonth}`),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: "$transactions",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalDepositAmount: {
+            $sum: {
+              $cond: {
+                if: {
+                  $or: [
+                    {
+                      $eq: ["$transactions.category", "Deposit"],
+                    },
+                    {
+                      $and: [
+                        {
+                          $eq: ["$transactions.category", "Transfer"],
+                        },
+                        {
+                          $eq: ["$transactions.receiverID", `${user._id}`],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                then: "$transactions.amount",
+                else: 0,
+              },
+            },
+          },
+          totalWithdrawAmount: {
+            $sum: {
+              $cond: {
+                if: {
+                  $or: [
+                    {
+                      $eq: ["$transactions.category", "Withdraw"],
+                    },
+                    {
+                      $and: [
+                        {
+                          $eq: ["$transactions.category", "Transfer"],
+                        },
+                        {
+                          $eq: ["$transactions.senderID", `${user._id}`],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                then: "$transactions.amount",
+                else: 0,
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const result = await User.aggregate(pipeline);
+
+    if (!result[0]) {
+      res.status(200).json({
+        success: true,
+        message: "There is no transactions in this month",
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, result: result[0] });
+  } catch (err) {
+    console.log(err);
+    res
+      .status(500)
+      .json({ success: false, message: "Error in analyze transactions" });
+  }
+};
+
+export {
+  withdrawMoney,
+  depositMoney,
+  transferMoney,
+  listTransactions,
+  analyzeTransactions,
+};
