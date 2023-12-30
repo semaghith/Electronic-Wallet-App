@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import { User } from "../models/User";
 import { Transfer, Deposit, Withdraw } from "../models/Transaction";
+import { success, failure } from "../utilities";
 
 const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -12,14 +13,14 @@ const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
     if (+withdrawAmount < 0) {
       res
         .status(400)
-        .json({ success: false, message: "Incorrect withdraw amount" });
+        .json(failure("message", "Amount must be greater than zero"));
       return;
     }
 
     let balance: number = user.balance;
 
     if (balance < withdrawAmount) {
-      res.status(400).json({ success: false, message: "Not enough money" });
+      res.status(400).json(failure("message", "Low balance"));
       return;
     }
 
@@ -34,11 +35,9 @@ const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
       $push: { transactions: transaction },
     });
 
-    res.status(200).json({ success: true, withdrawAmount: withdrawAmount });
+    res.status(200).json(success("withdraw_amount", withdrawAmount));
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to withdraw money" });
+    res.status(500).json(failure("message", "Withdraw failed"));
   }
 };
 
@@ -50,7 +49,7 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
     if (+depositAmount < 0) {
       res
         .status(400)
-        .json({ success: false, message: "Incorrect deposit amount" });
+        .json(failure("message", "Amount must be greater than zero"));
       return;
     }
 
@@ -65,11 +64,9 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
       $push: { transactions: transaction },
     });
 
-    res.status(200).json({ success: true, depositAmount: depositAmount });
+    res.status(200).json(success("deposit_amount", depositAmount));
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to deposit money" });
+    res.status(500).json(failure("message", "Deposit failed"));
   }
 };
 
@@ -84,9 +81,7 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
     //sender = receiver?
 
     if (!receiver) {
-      res
-        .status(404)
-        .json({ success: false, message: "Receiver ID not found" });
+      res.status(404).json(failure("message", "Receiver ID not found"));
       return;
     }
 
@@ -96,11 +91,11 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
     if (+transferAmount < 0) {
       res
         .status(400)
-        .json({ success: false, message: "Incorrect transfer amount" });
+        .json(failure("message", "Amount must be greater than zero"));
 
       return;
     } else if (+transferAmount > senderBalance) {
-      res.status(400).json({ success: false, message: "Not enough money" });
+      res.status(400).json(failure("message", "Low balance"));
 
       return;
     }
@@ -126,13 +121,11 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
 
     res.status(200).json({
       success: true,
-      receiverID: receiverID,
-      transferAmount: transferAmount,
+      receiver_id: receiverID,
+      transfer_amount: transferAmount,
     });
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to transfer money" });
+    res.status(500).json(failure("message", "Transfer failed"));
   }
 };
 
@@ -143,15 +136,13 @@ const listTransactions = async (req: Request, res: Response): Promise<void> => {
     const transaction = user.transactions;
 
     if (!transaction.length) {
-      res.status(200).json({ success: true, message: "No transactions found" });
+      res.status(200).json(success("message", "No transactions found"));
       return;
     }
 
-    res.status(200).json({ success: true, transactions: transaction });
+    res.status(200).json(success("transactions", transaction));
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to list transactions" });
+    res.status(500).json(failure("message", "list transactions failed"));
   }
 };
 
@@ -255,19 +246,13 @@ const analyzeTransactions = async (
     const result = await User.aggregate(pipeline);
 
     if (!result[0]) {
-      res.status(200).json({
-        success: true,
-        message: "There is no transactions in this month",
-      });
+      res.status(200).json(success("message", "No transactions in this month"));
       return;
     }
 
-    res.status(200).json({ success: true, result: result[0] });
+    res.status(200).json(success("result", result[0]));
   } catch (err) {
-    console.log(err);
-    res
-      .status(500)
-      .json({ success: false, message: "Error in analyze transactions" });
+    res.status(500).json(failure("message", "Analyze transactions failed"));
   }
 };
 
