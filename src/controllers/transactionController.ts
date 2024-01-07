@@ -133,7 +133,13 @@ const listTransactions = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user;
 
-    const transaction = user.transactions;
+    const page: number = 1,
+      limit: number = 3;
+
+    const transaction = user.transactions.slice(
+      (page - 1) * limit,
+      page * limit
+    );
 
     if (!transaction.length) {
       res.status(200).json(success("message", "No transactions found"));

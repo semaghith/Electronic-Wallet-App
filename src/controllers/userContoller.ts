@@ -3,11 +3,37 @@ import { Request, Response } from "express";
 import { User } from "../models/User";
 import { failure, success } from "../utilities";
 
+async function paginationData(req: Request) {
+  //TODO:condition first document & check next and prev limits
+
+  const { cursor, limit } = req.query;
+  const parsedLimit : number = parseInt(limit as string);
+
+  const prev = await User.find({ _id: { $lt: cursor } })
+      .sort({ _id: -1 })
+      .limit(parsedLimit * 2),
+
+    next = await User.find({ _id: { $gt: cursor } })
+      .sort({ _id: 1 })
+      .limit(parsedLimit);
+
+  prev.reverse();
+
+  return [prev, next];
+}
+
 const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find({});
+    const [prev, next] = await paginationData(req);
 
-    res.status(200).json(success("users", users));
+    const metadata = {
+      prev_cursor: prev[0]._id,
+      next_cursor: next[next.length - 1]._id,
+    };
+
+    console.log(metadata); //TODO:send in response
+
+    res.status(200).json(success("users", next));
   } catch (err) {
     res.status(500).json(failure("message", "Get users failed"));
   }
