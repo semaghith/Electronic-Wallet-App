@@ -1,13 +1,15 @@
-const success = (messageType: string, message: unknown) => {
-  let messageText = messageType.toLowerCase();
+// const success = (messageType: string, message: unknown) => {
+//   let messageText = messageType.toLowerCase();
 
-  return { success: true, [messageText]: message };
+//   return { success: true, [messageText]: message };
+// };
+
+const responseMessage = (data: object) => {
+  return { success: true, ...data };
 };
 
-const failure = (messageType: string, message: unknown) => {
-  let messageText = messageType.toLowerCase();
-
-  return { success: false, [messageText]: message };
+const failure = (message: string) => {
+  return { success: false, message: message };
 };
 
-export { success, failure };
+export { responseMessage, failure };

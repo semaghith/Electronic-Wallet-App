@@ -5,7 +5,7 @@ import { Request, Response } from "express";
 
 import { User } from "../models/User";
 import { tokenKey } from "../config";
-import { failure, success } from "../utilities";
+import { responseMessage, failure } from "../utilities";
 
 async function validateEmail(email: string) {
   try {
@@ -27,14 +27,14 @@ const register = async (req: Request, res: Response): Promise<void> => {
     const validEmail = await validateEmail(email);
 
     if (!validEmail) {
-      res.status(400).json(failure("message", "Invaild email"));
+      res.status(400).json(failure("Invaild email"));
       return;
     }
 
     const emailExist = await User.findOne({ email: email });
 
     if (emailExist) {
-      res.status(400).json(failure("message", "Email already exists"));
+      res.status(400).json(failure("Email already exists"));
       return;
     }
 
@@ -45,9 +45,9 @@ const register = async (req: Request, res: Response): Promise<void> => {
 
     await user.save();
 
-    res.status(200).json(success("user_id", user._id));
+    res.status(200).json(responseMessage({ user_id: user._id }));
   } catch (err) {
-    res.status(500).json(failure("message", "Register failed"));
+    res.status(500).json(failure("Register failed"));
   }
 };
 
@@ -58,23 +58,21 @@ const login = async (req: Request, res: Response): Promise<void> => {
     const validEmail = await validateEmail(email);
 
     if (!validEmail) {
-      res.status(400).json(failure("message", "Invaild email"));
+      res.status(400).json(failure("Invaild email"));
       return;
     }
 
     const emailExist = await User.findOne({ email });
 
     if (!emailExist) {
-      res.status(404).json(failure("message", "Email not found"));
+      res.status(404).json(failure("Email not found"));
       return;
     }
 
     const auth = await bcrypt.compare(password, emailExist.password);
 
     if (!auth) {
-      res
-        .status(401)
-        .json(failure("message", "Incorrect username or password"));
+      res.status(401).json(failure("Incorrect username or password"));
       return;
     }
 
@@ -84,9 +82,10 @@ const login = async (req: Request, res: Response): Promise<void> => {
       expiresIn: expirationTime,
     });
 
-    res.status(200).json(success("user_token", token));
+    //TODO: token set to header of req?
+    res.status(200).json(responseMessage({ user_token: token }));
   } catch (err) {
-    res.status(500).json(failure("message", "Login failed"));
+    res.status(500).json(failure("Login failed"));
   }
 };
 

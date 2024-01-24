@@ -14,7 +14,7 @@ const verifyAuth = async (
     const bearerHeader = req.headers["authorization"];
 
     if (!bearerHeader) {
-      res.status(401).json(failure("message", "Not authorized"));
+      res.status(401).json(failure("Not authorized"));
       return;
     }
 
@@ -23,16 +23,19 @@ const verifyAuth = async (
     const userID = (jwt.verify(bearerToken, tokenKey) as { userID: string })
       .userID;
 
-    req.user = await User.findById(userID);
+    req.user = await User.findById(userID).select({
+      transactions: 0,
+      password: 0,
+    });
 
     if (!req.user) {
-      res.status(404).json(failure("message", "Account not found"));
+      res.status(404).json(failure("Account not found"));
       return;
     }
 
     next();
   } catch (err) {
-    res.status(403).json(failure("message", "Forbidden"));
+    res.status(401).json(failure("Not authorized"));
   }
 };
 
