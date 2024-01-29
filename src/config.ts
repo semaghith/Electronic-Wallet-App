@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import mongoose from "mongoose";
 
 dotenv.config();
 
@@ -13,5 +14,7 @@ const envExist = (envVariable: string): string => {
 const port: string = envExist("PORT");
 const dbURI: string = envExist("DBCONNECTION");
 const tokenKey: string = envExist("TOKENKEY");
+const conn = mongoose.connection;
 
-export { port, dbURI, tokenKey };
+
+export { port, dbURI, tokenKey, conn};

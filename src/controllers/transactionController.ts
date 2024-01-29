@@ -1,8 +1,10 @@
+import { z } from "zod";
 import { Request, Response } from "express";
 
+import { conn } from "../config";
 import { User } from "../models/User";
-import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 import { responseMessage, failure } from "../utilities";
+import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 
 const depositMoney = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -61,11 +63,15 @@ const withdrawMoney = async (req: Request, res: Response): Promise<void> => {
 };
 
 const transferMoney = async (req: Request, res: Response): Promise<void> => {
+  const session = await conn.startSession();
+
   try {
+    session.startTransaction();
+
     const { receiverID, transferAmount } = req.body;
 
     const sender = req.user;
-    const receiver = await User.findById(receiverID).select({
+    const receiver = await User.findById(receiverID, { session }).select({
       _id: 1,
       balance: 1,
     });
@@ -92,16 +98,25 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
     });
 
     await Promise.all([
-      sender.updateOne({
-        $inc: { balance: -transferAmount },
-        $push: { transactions: transaction },
-      }),
+      sender.updateOne(
+        {
+          $inc: { balance: -transferAmount },
+          $push: { transactions: transaction },
+        },
+        { session }
+      ),
 
-      receiver.updateOne({
-        $inc: { balance: transferAmount },
-        $push: { transactions: transaction },
-      }),
+      receiver.updateOne(
+        {
+          $inc: { balance: transferAmount },
+          $push: { transactions: transaction },
+        },
+        { session }
+      ),
     ]);
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json(
       responseMessage({
@@ -110,6 +125,8 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
       })
     );
   } catch (err) {
+    session.abortTransaction();
+    session.endSession();
     res.status(500).json(failure("Transfer failed"));
   }
 };
@@ -172,22 +189,22 @@ const analyzeTransactions = async (
     const pipeline = [
       {
         $match: {
-          $and: [
-            {
-              _id: user._id,
-            },
-            {
-              "transactions.date": {
-                $gte: new Date(`${parsedYear}-${parsedMonth}`),
-                $lt: new Date(`${nextYear}-${nextMonth}`),
-              },
-            },
-          ],
+          _id: user._id,
         },
       },
       {
         $unwind: {
           path: "$transactions",
+        },
+      },
+      {
+        $match: {
+          "transactions.date": {
+            // $gte: startDate,
+            // $lt: endDate,
+            $gte: new Date(`${parsedYear}-${parsedMonth}`),
+            $lt: new Date(`${nextYear}-${nextMonth}`),
+          },
         },
       },
       {
@@ -207,7 +224,7 @@ const analyzeTransactions = async (
                           $eq: ["$transactions.category", "Transfer"],
                         },
                         {
-                          $eq: ["$transactions.receiverID", `${user._id}`],
+                          $eq: ["$transactions.receiverID", user._id],
                         },
                       ],
                     },
@@ -232,7 +249,7 @@ const analyzeTransactions = async (
                           $eq: ["$transactions.category", "Transfer"],
                         },
                         {
-                          $eq: ["$transactions.senderID", `${user._id}`],
+                          $eq: ["$transactions.senderID", user._id],
                         },
                       ],
                     },
