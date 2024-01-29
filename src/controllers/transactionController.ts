@@ -6,6 +6,19 @@ import { User } from "../models/User";
 import { responseMessage, failure } from "../utilities";
 import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 
+async function validateDate(startDate: Date, endDate: Date) {
+  try {
+    return (
+      z.date().safeParse(startDate).success &&
+      z.date().safeParse(endDate).success
+    );
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return false;
+    }
+  }
+}
+
 const depositMoney = async (req: Request, res: Response): Promise<void> => {
   try {
     const { depositAmount } = req.body;
@@ -186,6 +199,16 @@ const analyzeTransactions = async (
       nextYear++;
     }
 
+    const startDate = new Date(`${parsedYear}-${parsedMonth}`);
+    const endDate = new Date(`${nextYear}-${nextMonth}`);
+
+    const validDate = await validateDate(startDate, endDate);
+
+    if (!validDate) {
+      res.status(400).json(failure("Invaild date"));
+      return;
+    }
+
     const pipeline = [
       {
         $match: {
@@ -200,10 +223,10 @@ const analyzeTransactions = async (
       {
         $match: {
           "transactions.date": {
-            // $gte: startDate,
-            // $lt: endDate,
-            $gte: new Date(`${parsedYear}-${parsedMonth}`),
-            $lt: new Date(`${nextYear}-${nextMonth}`),
+            $gte: startDate,
+            $lt: endDate,
+            // $gte: new Date(`${parsedYear}-${parsedMonth}`),
+            // $lt: new Date(`${nextYear}-${nextMonth}`),
           },
         },
       },
