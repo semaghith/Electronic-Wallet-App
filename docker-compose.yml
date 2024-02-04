@@ -1,0 +1,22 @@
+version: '3'
+services:
+  node-app:
+    container_name: electronic-wallet-app-container
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./.env
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo
+    restart: always
+    volumes:
+      - mongo-db:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ""
+      MONGO_INITDB_ROOT_PASSWORD: ""
+
+volumes:
+  mongo-db:
