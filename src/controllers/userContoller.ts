@@ -10,46 +10,54 @@ async function paginationData(req: Request) {
   const { cursor, limit } = req.query;
   const parsedLimit: number = parseInt(limit as string);
 
-  // await Promise.all([]);
-  // const prev = await User.find({ _id: { $lt: cursor } })
-  //     .sort({ _id: -1 })
-  //     .limit(parsedLimit * 2),
+  let current;
 
-  const next = await User.find({ _id: { $gt: cursor } })
-    .sort({ _id: 1 })
-    .limit(parsedLimit)
-    .select({
-      transactions: 0,
-      password: 0,
-      __v: 0,
-    });
+  if (req.body.next) {
+    current = await User.find({ _id: { $gt: cursor } })
+      .sort({ _id: 1 })
+      .limit(parsedLimit)
+      .select({
+        transactions: 0,
+        password: 0,
+        __v: 0,
+      });
+  } else {
+    current = await User.find({ _id: { $lt: cursor } })
+      .sort({ _id: -1 })
+      .limit(parsedLimit)
+      .select({
+        transactions: 0,
+        password: 0,
+        __v: 0,
+      });
 
-  return next;
+    current.reverse();
+  }
+
+  const metadata = {
+    prev_cursor: current[0]._id,
+    next_cursor: current[current.length - 1]._id,
+  };
+
+  return { metadata, current };
 }
 
 const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const next = await paginationData(req);
+    const { metadata, current } = await paginationData(req);
 
-    if (!next.length) {
-      //TODO: change value with last id
-      const prev_cursor = "prev";
+    // if (!current.length) {
+    //   res.status(200).json(
+    //     responseMessage({
+    //       message: "No users found",
+    //     })
+    //   );
+    //   return;
+    // }
 
-      res.status(200).json(
-        responseMessage({
-          message: "No users found",
-          prev_cursor: prev_cursor,
-        })
-      );
-      return;
-    }
-
-    const metadata = {
-      prev_cursor: next[0]._id,
-      next_cursor: next[next.length - 1]._id,
-    };
-
-    res.status(200).json(responseMessage({ users: next, metadata: metadata }));
+    res
+      .status(200)
+      .json(responseMessage({ users: current, metadata: metadata }));
   } catch (err) {
     //catch error in find:
     // if () {
