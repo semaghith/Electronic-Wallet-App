@@ -1,4 +1,5 @@
 import { z } from "zod";
+import NodeCache from "node-cache";
 import { Request, Response } from "express";
 
 import { conn } from "../config";
@@ -6,7 +7,9 @@ import { User } from "../models/User";
 import { responseMessage, failure } from "../utilities";
 import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 
-const idempotencyKeys = new Set();
+const idempotencyKeys = new NodeCache({ stdTTL: 7500 }); //2 H
+
+// const idempotencyKeys = new Set();
 
 async function validateDate(startDate: Date, endDate: Date) {
   try {
@@ -27,7 +30,14 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
     const user = req.user;
     const idempotencyKey = req.header("Idempotency-Key");
 
-    if (idempotencyKeys.has(idempotencyKey)) {
+    if (!idempotencyKey) {
+      res.status(400).json(failure("Idempotency-Key missed"));
+      return;
+    }
+
+    const value = idempotencyKeys.get(idempotencyKey);
+
+    if (value) {
       res
         .status(200)
         .json(responseMessage({ message: "Request already processed" }));
@@ -48,8 +58,7 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
       $push: { transactions: transaction },
     });
 
-    idempotencyKeys.add(idempotencyKey);
-    console.log(idempotencyKeys);
+    idempotencyKeys.set(idempotencyKey, idempotencyKey);
 
     res.status(200).json(responseMessage({ deposit_amount: depositAmount }));
   } catch (err) {
