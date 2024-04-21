@@ -7,9 +7,8 @@ import { User } from "../models/User";
 import { responseMessage, failure } from "../utilities";
 import { Transfer, Deposit, Withdraw } from "../models/Transaction";
 
-const idempotencyKeys = new NodeCache({ stdTTL: 7500 }); //2 H
-
-// const idempotencyKeys = new Set();
+const idempotencyKeys = new NodeCache({ stdTTL: 7500 }); //  2 H
+const cache = new NodeCache({ stdTTL: 300 }); //  5 min
 
 async function validateDate(startDate: Date, endDate: Date) {
   try {
@@ -35,9 +34,9 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const value = idempotencyKeys.get(idempotencyKey);
+    const keyExist = idempotencyKeys.has(idempotencyKey);
 
-    if (value) {
+    if (keyExist) {
       res
         .status(200)
         .json(responseMessage({ message: "Request already processed" }));
@@ -58,6 +57,7 @@ const depositMoney = async (req: Request, res: Response): Promise<void> => {
       $push: { transactions: transaction },
     });
 
+    //Add key to idempotencyKeys in cache
     idempotencyKeys.set(idempotencyKey, idempotencyKey);
 
     res.status(200).json(responseMessage({ deposit_amount: depositAmount }));
@@ -106,7 +106,7 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
     const { receiverID, transferAmount } = req.body;
 
     const sender = req.user;
-    const receiver = await User.findById(receiverID, { session }).select({
+    const receiver = await User.findById(receiverID, null, { session }).select({
       _id: 1,
       balance: 1,
     });
@@ -138,6 +138,7 @@ const transferMoney = async (req: Request, res: Response): Promise<void> => {
           $inc: { balance: -transferAmount },
           $push: { transactions: transaction },
         },
+        null,
         { session }
       ),
 
@@ -174,6 +175,14 @@ const getTransactions = async (req: Request, res: Response): Promise<void> => {
     const parsedPage: number = parseInt(page as string),
       parsedLimit: number = parseInt(limit as string);
 
+    const cacheKey = `${userID}:${parsedPage}:${parsedLimit}`;
+    const value = cache.get(`${cacheKey}`);
+
+    if (value) {
+      res.status(200).json(responseMessage({ transactions: value }));
+      return;
+    }
+
     const user = await User.findById(userID, {
       transactions: { $slice: [(parsedPage - 1) * parsedLimit, parsedLimit] },
     });
@@ -184,10 +193,7 @@ const getTransactions = async (req: Request, res: Response): Promise<void> => {
     }
 
     const transactions = user.transactions;
-    //.slice(
-    //   (page - 1) * limit,
-    //   page * limit
-    // );
+    //.slice((page - 1) * limit, page * limi);
 
     if (!transactions.length) {
       res
@@ -195,6 +201,8 @@ const getTransactions = async (req: Request, res: Response): Promise<void> => {
         .json(responseMessage({ message: "No transactions found" }));
       return;
     }
+
+    cache.set(`${cacheKey}`, transactions);
 
     res.status(200).json(responseMessage({ transactions: transactions }));
   } catch (err) {
